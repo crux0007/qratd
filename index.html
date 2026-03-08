@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Guard - Secure Location Check-in</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        #reader { border: none !important; }
+        #reader video { border-radius: 1rem; object-fit: cover; }
+        #reader__dashboard_section_csr button {
+            background-color: #4f46e5 !important;
+            color: white !important;
+            padding: 0.5rem 1rem !important;
+            border-radius: 0.5rem !important;
+            border: none !important;
+            font-weight: 600 !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900">
+
+    <!-- App Container -->
+    <div id="app" class="max-w-md mx-auto min-h-screen flex flex-col p-4">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-center py-4 mb-6">
+            <div class="flex items-center gap-2">
+                <div class="bg-indigo-600 p-2 rounded-lg">
+                    <i class="fas fa-shield-halved text-white"></i>
+                </div>
+                <h1 class="font-bold text-xl tracking-tight">QR Guard</h1>
+            </div>
+            <button id="toggleView" class="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition">
+                View History
+            </button>
+        </header>
+
+        <!-- Main View: Scanner -->
+        <main id="scannerView" class="flex-1 flex flex-col gap-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h2 class="text-lg font-bold mb-2">Scan QR Code</h2>
+                <p class="text-slate-500 text-sm mb-6">Point your camera at the wall-mounted QR code to verify your location.</p>
+                
+                <div id="reader" class="overflow-hidden rounded-xl bg-slate-100 aspect-square mb-4"></div>
+                
+                <div id="statusMessage" class="hidden p-4 rounded-xl text-center font-medium transition-all duration-300">
+                    <!-- Status injected here -->
+                </div>
+            </div>
+
+            <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                <div class="flex gap-3">
+                    <i class="fas fa-info-circle text-indigo-600 mt-1"></i>
+                    <p class="text-xs text-indigo-900 leading-relaxed">
+                        This system automatically captures your GPS coordinates and current timestamp. Manual edits are disabled to ensure data integrity.
+                    </p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Secondary View: History (Owner Dashboard) -->
+        <main id="historyView" class="hidden flex-1 flex flex-col gap-4">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-lg font-bold">Recent Scans</h2>
+                <span id="scanCount" class="bg-slate-200 px-2 py-0.5 rounded text-xs font-bold text-slate-600">0</span>
+            </div>
+            
+            <div id="historyList" class="flex flex-col gap-3 pb-20">
+                <!-- History items injected here -->
+                <div class="text-center py-10 text-slate-400 italic text-sm">No scans recorded yet...</div>
+            </div>
+        </main>
+
+        <!-- Footer Branding -->
+        <footer class="mt-auto py-6 text-center text-slate-400 text-xs">
+            &copy; 2026 QR Guard Secure Pro • Project: QRatd
+        </footer>
+    </div>
+
+    <!-- Firebase Implementation -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // Your specific Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDKn3JVDodxBa7M0uuaVPnNWUhwcDfayy0",
+            authDomain: "qratd-5662a.firebaseapp.com",
+            projectId: "qratd-5662a",
+            storageBucket: "qratd-5662a.firebasestorage.app",
+            messagingSenderId: "820055328673",
+            appId: "1:820055328673:web:b1209fc5af3b16cd19ede0",
+            measurementId: "G-6C80ZM4CH7"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // Using Project ID as the identifier for the data path
+        const appId = firebaseConfig.projectId;
+
+        let currentUser = null;
+        let html5QrCode = null;
+        
+        // Firestore Path following the required security structure
+        const scansCollection = collection(db, 'artifacts', appId, 'public', 'data', 'scans');
+
+        // 1. Initial Authentication
+        async function init() {
+            try {
+                // Always authenticate before doing anything else
+                const cred = await signInAnonymously(auth);
+                currentUser = cred.user;
+                console.log("Authenticated as:", currentUser.uid);
+                startScanner();
+                listenForScans();
+            } catch (error) {
+                console.error(error);
+                showStatus("Authentication failed. Please check internet.", "error");
+            }
+        }
+
+        // 2. Setup Scanner
+        function startScanner() {
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                onScanSuccess
+            ).catch(err => {
+                showStatus("Camera permission required to scan.", "error");
+            });
+        }
+
+        // 3. Handle Scan Success
+        async function onScanSuccess(decodedText, decodedResult) {
+            // Stop scanning to prevent multiple triggers
+            await html5QrCode.pause(true);
+            showStatus("Code detected! Fetching location...", "info");
+
+            if (!navigator.geolocation) {
+                showStatus("Geolocation is not supported by this browser.", "error");
+                html5QrCode.resume();
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    const data = {
+                        siteId: decodedText, 
+                        userId: currentUser.uid,
+                        timestamp: serverTimestamp(), 
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy
+                    };
+
+                    try {
+                        if (!currentUser) return; // Guard
+                        await addDoc(scansCollection, data);
+                        showStatus("Check-in Verified & Sent to Owner!", "success");
+                        
+                        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                        
+                        setTimeout(() => {
+                            showStatus("", "hide");
+                            html5QrCode.resume();
+                        }, 5000);
+
+                    } catch (e) {
+                        console.error(e);
+                        showStatus("Save failed. Try again.", "error");
+                        html5QrCode.resume();
+                    }
+                },
+                (error) => {
+                    showStatus("Location access denied. Verification failed.", "error");
+                    html5QrCode.resume();
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+
+        // 4. UI Functions
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusMessage');
+            el.classList.remove('hidden', 'bg-red-100', 'text-red-700', 'bg-green-100', 'text-green-700', 'bg-indigo-100', 'text-indigo-700');
+            
+            if (type === 'hide') {
+                el.classList.add('hidden');
+                return;
+            }
+
+            el.innerText = msg;
+            if (type === 'error') el.classList.add('bg-red-100', 'text-red-700');
+            else if (type === 'success') el.classList.add('bg-green-100', 'text-green-700');
+            else el.classList.add('bg-indigo-100', 'text-indigo-700');
+            el.classList.remove('hidden');
+        }
+
+        // 5. Fetch History (Real-time)
+        function listenForScans() {
+            onAuthStateChanged(auth, (user) => {
+                if (!user) return;
+
+                onSnapshot(scansCollection, (snapshot) => {
+                    const historyList = document.getElementById('historyList');
+                    const scanCount = document.getElementById('scanCount');
+                    
+                    const docs = [];
+                    snapshot.forEach(doc => docs.push({id: doc.id, ...doc.data()}));
+                    
+                    // Sort by newest first
+                    docs.sort((a, b) => {
+                        const timeA = a.timestamp?.seconds || 0;
+                        const timeB = b.timestamp?.seconds || 0;
+                        return timeB - timeA;
+                    });
+
+                    scanCount.innerText = docs.length;
+
+                    if (docs.length === 0) {
+                        historyList.innerHTML = '<div class="text-center py-10 text-slate-400 italic text-sm">No scans recorded yet...</div>';
+                        return;
+                    }
+
+                    historyList.innerHTML = docs.map(scan => `
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-start gap-4">
+                            <div class="bg-slate-100 p-2 rounded text-slate-600">
+                                <i class="fas fa-map-pin"></i>
+                            </div>
+                            <div class="flex-1 overflow-hidden">
+                                <div class="flex justify-between items-start">
+                                    <h3 class="font-bold text-slate-800 truncate">${scan.siteId || 'Unknown Site'}</h3>
+                                    <span class="text-[10px] text-slate-400 font-mono">${scan.timestamp ? new Date(scan.timestamp.seconds * 1000).toLocaleTimeString() : '...'}</span>
+                                </div>
+                                <p class="text-[10px] text-slate-500 font-mono mb-2">${scan.timestamp ? new Date(scan.timestamp.seconds * 1000).toLocaleDateString() : 'Saving...'}</p>
+                                <div class="flex gap-2">
+                                    <a href="https://www.google.com/maps?q=${scan.latitude},${scan.longitude}" 
+                                       target="_blank"
+                                       class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-bold flex items-center gap-1 hover:bg-indigo-100 transition">
+                                        <i class="fas fa-external-link-alt"></i> VIEW MAP
+                                    </a>
+                                    <span class="text-[10px] bg-slate-50 text-slate-400 px-2 py-1 rounded">
+                                        UID: ...${scan.userId.slice(-5)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }, (error) => {
+                    console.error("Firestore error:", error);
+                });
+            });
+        }
+
+        // View Toggling
+        const toggleBtn = document.getElementById('toggleView');
+        const scannerView = document.getElementById('scannerView');
+        const historyView = document.getElementById('historyView');
+
+        toggleBtn.addEventListener('click', () => {
+            if (scannerView.classList.contains('hidden')) {
+                scannerView.classList.remove('hidden');
+                historyView.classList.add('hidden');
+                toggleBtn.innerText = 'View History';
+            } else {
+                scannerView.classList.add('hidden');
+                historyView.classList.remove('hidden');
+                toggleBtn.innerText = 'Go to Scanner';
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
