@@ -170,6 +170,7 @@
                 
                 if (isAdmin) {
                     document.getElementById('toggleView').style.display = 'block';
+                    document.getElementById('toggleView').innerText = "SCANNER";
                     showView('historyView');
                     listenForScans();
                 } else {
@@ -201,7 +202,17 @@
             document.getElementById(id).classList.remove('hidden');
         }
 
+        async function stopScanner() {
+            if (html5QrCode) {
+                try {
+                    await html5QrCode.stop();
+                    html5QrCode = null;
+                } catch (e) { console.error("Error stopping scanner", e); }
+            }
+        }
+
         function startScanner() {
+            if (html5QrCode) return;
             html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScanSuccess)
             .catch(() => showStatus("CAMERA UNAVAILABLE", "error"));
@@ -221,7 +232,7 @@
                 setTimeout(() => finalizeAttendance(decodedText), 2500);
             } catch (err) {
                 showStatus("BIOMETRIC ERROR", "error");
-                html5QrCode.resume();
+                if(html5QrCode) html5QrCode.resume();
                 overlay.classList.add('hidden');
             }
         }
@@ -238,7 +249,12 @@
             document.getElementById('faceOverlay').classList.add('hidden');
 
             showStatus("ENCRYPTING...", "info");
-            const profile = JSON.parse(localStorage.getItem('qrg_profile'));
+            
+            // Get profile or use Admin identity if in admin mode without profile
+            let profile = JSON.parse(localStorage.getItem('qrg_profile'));
+            if (!profile && isAdmin) {
+                profile = { name: "System Administrator", empId: "ADMIN-TEST" };
+            }
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 try {
@@ -254,14 +270,14 @@
                     
                     showStatus("SUCCESSFULLY LOGGED", "success");
                     if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-                    setTimeout(() => { showStatus("", "hide"); html5QrCode.resume(); }, 5000);
+                    setTimeout(() => { showStatus("", "hide"); if(html5QrCode) html5QrCode.resume(); }, 5000);
                 } catch (e) {
                     showStatus("SYNC FAILED", "error");
-                    html5QrCode.resume();
+                    if(html5QrCode) html5QrCode.resume();
                 }
             }, () => {
                 showStatus("GPS REQUIRED", "error");
-                html5QrCode.resume();
+                if(html5QrCode) html5QrCode.resume();
             }, { enableHighAccuracy: true });
         }
 
@@ -317,13 +333,18 @@
             el.classList.remove('hidden');
         }
 
-        document.getElementById('toggleView').onclick = () => {
+        document.getElementById('toggleView').onclick = async () => {
             const isShowingHistory = scannerView.classList.contains('hidden');
             if(isShowingHistory) {
+                const profile = JSON.parse(localStorage.getItem('qrg_profile'));
+                document.getElementById('badgeName').innerText = profile ? profile.name : "System Administrator";
+                document.getElementById('badgeId').innerText = "ID: " + (profile ? profile.empId : "ADMIN-TEST");
+                
                 showView('scannerView');
-                if(!html5QrCode) startScanner();
+                startScanner();
                 document.getElementById('toggleView').innerText = "DASHBOARD";
             } else {
+                await stopScanner();
                 showView('historyView');
                 document.getElementById('toggleView').innerText = "SCANNER";
             }
