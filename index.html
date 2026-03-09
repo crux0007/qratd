@@ -13,7 +13,6 @@
         #reader { border: none !important; }
         #reader video { border-radius: 1.5rem; object-fit: cover; }
         .admin-only { display: none; }
-        .unlock-only { display: none; }
         #faceCaptureVideo { transform: scaleX(-1); border-radius: 1.5rem; }
         
         /* Custom Palette Constants */
@@ -79,10 +78,9 @@
                         </div>
                     </div>
                 </div>
-                <!-- Reset Button (Owner Only) -->
-                <button id="resetProfileBtn" onclick="clearProfile()" class="unlock-only absolute right-4 top-4 w-10 h-10 flex items-center justify-center text-white/20 hover:text-tan transition-colors">
-                    <i class="fas fa-key text-sm"></i>
-                </button>
+                <div class="absolute -right-4 -bottom-4 opacity-10">
+                    <i class="fas fa-shield-halved text-6xl text-white"></i>
+                </div>
             </div>
 
             <!-- Scanning Area -->
@@ -162,17 +160,9 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = urlParams.get('admin') === 'true';
-        const isUnlock = urlParams.get('unlock') === 'true';
         
         let html5QrCode = null;
         let faceStream = null;
-
-        window.clearProfile = () => { 
-            if(confirm("ADMIN OVERRIDE: Clear device identity?")) { 
-                localStorage.removeItem('qrg_profile'); 
-                location.href = window.location.pathname; 
-            } 
-        };
 
         async function init() {
             try {
@@ -183,10 +173,6 @@
                     showView('historyView');
                     listenForScans();
                 } else {
-                    if (isUnlock) {
-                        document.getElementById('resetProfileBtn').style.display = 'flex';
-                    }
-                    
                     const profile = JSON.parse(localStorage.getItem('qrg_profile'));
                     if (!profile) {
                         showView('setupView');
@@ -301,7 +287,7 @@
                         <div class="flex-1 min-w-0 flex flex-col justify-center">
                             <div class="flex justify-between items-start mb-1">
                                 <h3 class="font-black text-navy text-sm truncate uppercase tracking-tight">${s.personName || 'Anonymous'}</h3>
-                                <span class="text-[9px] text-tan font-black bg-navy px-2 py-0.5 rounded-full">
+                                <span class="text-[9px] text-white font-black bg-navy px-2 py-0.5 rounded-full">
                                     ${s.timestamp ? new Date(s.timestamp.seconds * 1000).toLocaleTimeString() : '...'}
                                 </span>
                             </div>
