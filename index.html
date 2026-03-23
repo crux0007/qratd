@@ -32,7 +32,6 @@
         #reader { border: none !important; }
         #reader video { border-radius: 2rem; object-fit: cover; }
         
-        .admin-only { display: none; }
         #faceCaptureVideo { 
             transform: scaleX(-1); 
             border-radius: 2rem; 
@@ -43,10 +42,6 @@
             box-shadow: 0 20px 50px rgba(0, 27, 61, 0.08);
         }
 
-        .logo-mark {
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
         #customAlert {
             display: none;
             position: fixed;
@@ -93,7 +88,7 @@
             </h1>
             <p class="text-[9px] uppercase tracking-[0.4em] text-slate-400 mt-2 font-bold">Secure Presence Protocol</p>
             
-            <button id="toggleView" class="admin-only mt-6 text-[9px] font-black tracking-[0.3em] text-white px-8 py-3 bg-[#001B3D] rounded-full luxury-shadow active:scale-95 transition-all">
+            <button id="toggleView" class="hidden mt-6 text-[9px] font-black tracking-[0.3em] text-white px-8 py-3 bg-[#001B3D] rounded-full luxury-shadow active:scale-95 transition-all">
                 ADMINISTRATION
             </button>
         </header>
@@ -185,7 +180,7 @@
             </div>
             
             <div id="historyList" class="flex flex-col gap-5 pb-32">
-                <div class="text-center py-20 text-slate-200 brand-font text-xs uppercase tracking-[0.5em]">Syncing...</div>
+                <div class="text-center py-20 text-slate-200 brand-font text-xs uppercase tracking-[0.5em]">Loading Logs...</div>
             </div>
         </main>
 
@@ -201,7 +196,7 @@
         import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // --- ENVIRONMENT HANDLING ---
+        // --- ENVIRONMENT CONFIGURATION ---
         let firebaseConfig;
         let appId;
         let initialToken;
@@ -211,7 +206,7 @@
             appId = typeof __app_id !== 'undefined' ? __app_id : 'qr-guard-pro-default';
             initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         } else {
-            // Fallback for Github
+            // Fallback for Github / Personal Projects
             firebaseConfig = {
                 apiKey: "AIzaSyDKn3JVDodxBa7M0uuaVPnNWUhwcDfayy0",
                 authDomain: "qratd-5662a.firebaseapp.com",
@@ -229,7 +224,6 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // Final Path Definition
         const scansCollection = (typeof __firebase_config !== 'undefined') 
             ? collection(db, 'artifacts', appId, 'public', 'data', 'scans')
             : collection(db, 'scans');
@@ -245,27 +239,21 @@
             const alertEl = document.getElementById('customAlert');
             const alertText = document.getElementById('alertText');
             const alertIcon = document.getElementById('alertIcon');
+            if(!alertEl || !alertText) return;
             alertText.innerText = msg;
             alertIcon.className = `fas ${icon} text-tan`;
             alertEl.style.display = 'flex';
             setTimeout(() => { alertEl.style.display = 'none'; }, 4000);
         }
 
-        async function init() {
-            onAuthStateChanged(auth, (user) => {
-                currentUser = user;
-                if (user) {
-                    setupApp();
-                }
-            });
-
-            try {
-                if (initialToken) await signInWithCustomToken(auth, initialToken);
-                else await signInAnonymously(auth);
-            } catch (error) {
-                console.error("Auth error:", error);
-                showStatus("CONNECTION DENIED", "error");
-            }
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusMessage');
+            if (!el) return;
+            if (type === 'hide') { el.classList.add('hidden'); return; }
+            el.className = "p-4 rounded-2xl text-center brand-font text-[9px] font-black uppercase tracking-[0.3em] mt-4 " + 
+                (type === 'error' ? 'bg-red-50 text-red-700' : type === 'success' ? 'bg-[#001B3D] text-[#D2B48C]' : 'bg-[#D2B48C] text-[#001B3D]');
+            el.innerText = msg;
+            el.classList.remove('hidden');
         }
 
         function showView(id) {
@@ -278,11 +266,26 @@
             if (target) target.classList.remove('hidden');
         }
 
+        async function init() {
+            onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+                setupApp(); // Always run setupApp when auth state changes
+            });
+
+            try {
+                if (initialToken) await signInWithCustomToken(auth, initialToken);
+                else await signInAnonymously(auth);
+            } catch (error) {
+                console.error("Auth error:", error);
+                showStatus("ACCESS DENIED", "error");
+            }
+        }
+
         function setupApp() {
             if (isAdmin) {
                 const toggleBtn = document.getElementById('toggleView');
                 if (toggleBtn) {
-                    toggleBtn.style.display = 'block';
+                    toggleBtn.classList.remove('hidden');
                     toggleBtn.innerText = "ACCESS SCANNER";
                 }
                 showView('historyView');
@@ -292,8 +295,10 @@
                 if (!profile) {
                     showView('setupView');
                 } else {
-                    document.getElementById('badgeName').innerText = profile.name;
-                    document.getElementById('badgeId').innerText = "ID: " + profile.empId;
+                    const badgeName = document.getElementById('badgeName');
+                    const badgeId = document.getElementById('badgeId');
+                    if(badgeName) badgeName.innerText = profile.name;
+                    if(badgeId) badgeId.innerText = "ID: " + profile.empId;
                     showView('scannerView');
                     startScanner();
                 }
@@ -301,8 +306,10 @@
         }
 
         document.getElementById('saveProfile').onclick = () => {
-            const name = document.getElementById('userName').value.trim();
-            const empId = document.getElementById('userId').value.trim();
+            const nameInput = document.getElementById('userName');
+            const idInput = document.getElementById('userId');
+            const name = nameInput ? nameInput.value.trim() : "";
+            const empId = idInput ? idInput.value.trim() : "";
             if(!name || !empId) return showAlert("CREDENTIALS REQUIRED", "fa-triangle-exclamation");
             localStorage.setItem('qrg_profile', JSON.stringify({ name, empId }));
             location.reload();
@@ -314,29 +321,35 @@
         if (clearBtn) {
             clearBtn.onclick = () => {
                 clearBtn.classList.add('hidden');
-                confirmState.classList.remove('hidden');
+                if(confirmState) confirmState.classList.remove('hidden');
             };
         }
 
-        document.getElementById('cancelDelete').onclick = () => {
-            clearBtn.classList.remove('hidden');
-            confirmState.classList.add('hidden');
-        };
+        const cancelDelete = document.getElementById('cancelDelete');
+        if(cancelDelete) {
+            cancelDelete.onclick = () => {
+                if(clearBtn) clearBtn.classList.remove('hidden');
+                if(confirmState) confirmState.classList.add('hidden');
+            };
+        }
 
-        document.getElementById('confirmDelete').onclick = async () => {
-            showStatus("WIPING VAULT...", "info");
-            try {
-                const querySnapshot = await getDocs(scansCollection);
-                const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
-                await Promise.all(deletePromises);
-                showStatus("VAULT CLEARED", "success");
-                confirmState.classList.add('hidden');
-                clearBtn.classList.remove('hidden');
-                setTimeout(() => showStatus("", "hide"), 3000);
-            } catch (e) {
-                showStatus("WIPE FAILED", "error");
-            }
-        };
+        const confirmDelete = document.getElementById('confirmDelete');
+        if(confirmDelete) {
+            confirmDelete.onclick = async () => {
+                showStatus("WIPING VAULT...", "info");
+                try {
+                    const querySnapshot = await getDocs(scansCollection);
+                    const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
+                    await Promise.all(deletePromises);
+                    showStatus("VAULT CLEARED", "success");
+                    if(confirmState) confirmState.classList.add('hidden');
+                    if(clearBtn) clearBtn.classList.remove('hidden');
+                    setTimeout(() => showStatus("", "hide"), 3000);
+                } catch (e) {
+                    showStatus("WIPE FAILED", "error");
+                }
+            };
+        }
 
         async function stopScanner() {
             if (html5QrCode) {
@@ -364,17 +377,18 @@
             
             const overlay = document.getElementById('faceOverlay');
             const video = document.getElementById('faceCaptureVideo');
-            overlay.classList.remove('hidden');
+            if(overlay) overlay.classList.remove('hidden');
 
             try {
                 faceStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: 600, height: 600 } 
+                    video: { facingMode: "user", width: { ideal: 600 }, height: { ideal: 600 } } 
                 });
-                video.srcObject = faceStream;
-                setTimeout(() => finalizeAttendance(decodedText), 2500);
+                if(video) video.srcObject = faceStream;
+                // Auto-trigger finalize after video settles
+                setTimeout(() => finalizeAttendance(decodedText), 3000);
             } catch (err) {
-                showAlert("BIOMETRIC ACCESS FAILED", "fa-camera-slash");
-                overlay.classList.add('hidden');
+                showAlert("CAMERA ERROR", "fa-camera-slash");
+                if(overlay) overlay.classList.add('hidden');
                 if(html5QrCode) html5QrCode.resume();
             }
         }
@@ -384,19 +398,19 @@
 
             const video = document.getElementById('faceCaptureVideo');
             const canvas = document.getElementById('photoCanvas');
-            const ctx = canvas.getContext('2d');
+            if(!video || !canvas) return;
             
+            const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const photoData = canvas.toDataURL('image/jpeg', 0.6);
             
             if (faceStream) faceStream.getTracks().forEach(track => track.stop());
-            document.getElementById('faceOverlay').classList.add('hidden');
+            const overlay = document.getElementById('faceOverlay');
+            if(overlay) overlay.classList.add('hidden');
+            
             showStatus("SYNCING LOGS...", "info");
             
             const profile = JSON.parse(localStorage.getItem('qrg_profile')) || { name: "Admin Session", empId: "ADM-01" };
-
-            // Logic to prevent hanging: Timeout Geolocation
-            const geoOptions = { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 };
 
             const saveRecord = async (coords = null) => {
                 try {
@@ -420,20 +434,39 @@
                         if(html5QrCode) html5QrCode.resume(); 
                     }, 4000);
                 } catch (e) {
-                    console.error("Firestore Save Error:", e);
-                    showStatus("DATABASE SYNC ERROR", "error");
+                    console.error("Firestore Error:", e);
+                    showStatus("DATABASE ERROR", "error");
                     if(html5QrCode) html5QrCode.resume();
                 }
             };
 
+            // Geolocation with strict fallback to prevent hanging
+            const geoOptions = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 };
+            
+            let geoResolved = false;
             navigator.geolocation.getCurrentPosition(
-                (pos) => saveRecord(pos.coords),
+                (pos) => {
+                    if (geoResolved) return;
+                    geoResolved = true;
+                    saveRecord(pos.coords);
+                },
                 (err) => {
-                    console.warn("Geo error:", err.message);
-                    saveRecord(); // Save without GPS if it fails
+                    if (geoResolved) return;
+                    geoResolved = true;
+                    console.warn("Geo skipped:", err.message);
+                    saveRecord();
                 },
                 geoOptions
             );
+
+            // Failsafe timer: proceed if Geolocation takes > 6 seconds
+            setTimeout(() => {
+                if (!geoResolved) {
+                    geoResolved = true;
+                    console.warn("Geo timeout failsafe triggered.");
+                    saveRecord();
+                }
+            }, 6000);
         }
 
         function listenForScans() {
@@ -442,11 +475,11 @@
             if (!historyList) return;
 
             onSnapshot(scansCollection, (snapshot) => {
-                const count = document.getElementById('scanCount');
+                const countEl = document.getElementById('scanCount');
                 const docs = snapshot.docs.map(d => d.data());
                 docs.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                 
-                if (count) count.innerText = docs.length;
+                if (countEl) countEl.innerText = docs.length;
                 if (docs.length === 0) {
                     historyList.innerHTML = '<div class="text-center py-20 text-slate-200 brand-font text-[10px] uppercase tracking-[0.4em]">Empty Vault</div>';
                     return;
@@ -484,30 +517,24 @@
             });
         }
 
-        function showStatus(msg, type) {
-            const el = document.getElementById('statusMessage');
-            if (!el) return;
-            if (type === 'hide') { el.classList.add('hidden'); return; }
-            el.className = "p-4 rounded-2xl text-center brand-font text-[9px] font-black uppercase tracking-[0.3em] mt-4 " + 
-                (type === 'error' ? 'bg-red-50 text-red-700' : type === 'success' ? 'bg-[#001B3D] text-[#D2B48C]' : 'bg-[#D2B48C] text-[#001B3D]');
-            el.innerText = msg;
-            el.classList.remove('hidden');
+        const toggleBtn = document.getElementById('toggleView');
+        if(toggleBtn) {
+            toggleBtn.onclick = async () => {
+                const scannerView = document.getElementById('scannerView');
+                if(!scannerView) return;
+                const isShowingHistory = scannerView.classList.contains('hidden');
+                if(isShowingHistory) {
+                    showView('scannerView');
+                    startScanner();
+                    toggleBtn.innerText = "VIEW DASHBOARD";
+                } else {
+                    await stopScanner();
+                    showView('historyView');
+                    toggleBtn.innerText = "ACCESS SCANNER";
+                    listenForScans();
+                }
+            };
         }
-
-        document.getElementById('toggleView').onclick = async () => {
-            const scannerView = document.getElementById('scannerView');
-            const isShowingHistory = scannerView.classList.contains('hidden');
-            if(isShowingHistory) {
-                showView('scannerView');
-                startScanner();
-                document.getElementById('toggleView').innerText = "VIEW DASHBOARD";
-            } else {
-                await stopScanner();
-                showView('historyView');
-                document.getElementById('toggleView').innerText = "ACCESS SCANNER";
-                listenForScans();
-            }
-        };
 
         window.onload = init;
     </script>
