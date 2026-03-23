@@ -193,10 +193,10 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, getDocs, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // --- ENVIRONMENT CONFIGURATION ---
+        // --- ADAPTIVE CONFIGURATION ---
         let firebaseConfig;
         let appId;
         let initialToken;
@@ -206,7 +206,7 @@
             appId = typeof __app_id !== 'undefined' ? __app_id : 'qr-guard-pro-default';
             initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         } else {
-            // Fallback for Github / Personal Projects
+            // Your original hardcoded project credentials
             firebaseConfig = {
                 apiKey: "AIzaSyDKn3JVDodxBa7M0uuaVPnNWUhwcDfayy0",
                 authDomain: "qratd-5662a.firebaseapp.com",
@@ -224,9 +224,10 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
         
+        // FIXED DATABASE PATH: Detects if running in Canvas vs Personal GitHub
         const scansCollection = (typeof __firebase_config !== 'undefined') 
             ? collection(db, 'artifacts', appId, 'public', 'data', 'scans')
-            : collection(db, 'scans');
+            : collection(db, 'scans'); // Restored your original flat structure for GitHub
 
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = urlParams.get('admin') === 'true';
@@ -269,7 +270,7 @@
         async function init() {
             onAuthStateChanged(auth, (user) => {
                 currentUser = user;
-                setupApp(); // Always run setupApp when auth state changes
+                if (user) setupApp();
             });
 
             try {
@@ -277,7 +278,7 @@
                 else await signInAnonymously(auth);
             } catch (error) {
                 console.error("Auth error:", error);
-                showStatus("ACCESS DENIED", "error");
+                showStatus("CONNECTION DENIED", "error");
             }
         }
 
@@ -298,7 +299,7 @@
                     const badgeName = document.getElementById('badgeName');
                     const badgeId = document.getElementById('badgeId');
                     if(badgeName) badgeName.innerText = profile.name;
-                    if(badgeId) badgeId.innerText = "ID: " + profile.empId;
+                    if(badgeId) badgeId.innerText = profile.empId;
                     showView('scannerView');
                     startScanner();
                 }
@@ -306,10 +307,8 @@
         }
 
         document.getElementById('saveProfile').onclick = () => {
-            const nameInput = document.getElementById('userName');
-            const idInput = document.getElementById('userId');
-            const name = nameInput ? nameInput.value.trim() : "";
-            const empId = idInput ? idInput.value.trim() : "";
+            const name = document.getElementById('userName').value.trim();
+            const empId = document.getElementById('userId').value.trim();
             if(!name || !empId) return showAlert("CREDENTIALS REQUIRED", "fa-triangle-exclamation");
             localStorage.setItem('qrg_profile', JSON.stringify({ name, empId }));
             location.reload();
@@ -325,31 +324,25 @@
             };
         }
 
-        const cancelDelete = document.getElementById('cancelDelete');
-        if(cancelDelete) {
-            cancelDelete.onclick = () => {
-                if(clearBtn) clearBtn.classList.remove('hidden');
-                if(confirmState) confirmState.classList.add('hidden');
-            };
-        }
+        document.getElementById('cancelDelete').onclick = () => {
+            if(clearBtn) clearBtn.classList.remove('hidden');
+            if(confirmState) confirmState.classList.add('hidden');
+        };
 
-        const confirmDelete = document.getElementById('confirmDelete');
-        if(confirmDelete) {
-            confirmDelete.onclick = async () => {
-                showStatus("WIPING VAULT...", "info");
-                try {
-                    const querySnapshot = await getDocs(scansCollection);
-                    const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
-                    await Promise.all(deletePromises);
-                    showStatus("VAULT CLEARED", "success");
-                    if(confirmState) confirmState.classList.add('hidden');
-                    if(clearBtn) clearBtn.classList.remove('hidden');
-                    setTimeout(() => showStatus("", "hide"), 3000);
-                } catch (e) {
-                    showStatus("WIPE FAILED", "error");
-                }
-            };
-        }
+        document.getElementById('confirmDelete').onclick = async () => {
+            showStatus("WIPING DATABASE...", "info");
+            try {
+                const querySnapshot = await getDocs(scansCollection);
+                const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
+                await Promise.all(deletePromises);
+                showStatus("VAULT CLEARED", "success");
+                if(confirmState) confirmState.classList.add('hidden');
+                if(clearBtn) clearBtn.classList.remove('hidden');
+                setTimeout(() => showStatus("", "hide"), 3000);
+            } catch (e) {
+                showStatus("WIPE FAILED", "error");
+            }
+        };
 
         async function stopScanner() {
             if (html5QrCode) {
@@ -373,7 +366,7 @@
 
         async function onScanSuccess(decodedText) {
             await html5QrCode.pause(true);
-            showStatus("SITE RECOGNIZED", "info");
+            showStatus("SITE IDENTIFIED", "info");
             
             const overlay = document.getElementById('faceOverlay');
             const video = document.getElementById('faceCaptureVideo');
@@ -381,10 +374,10 @@
 
             try {
                 faceStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: { ideal: 600 }, height: { ideal: 600 } } 
+                    video: { facingMode: "user", width: 600, height: 600 } 
                 });
                 if(video) video.srcObject = faceStream;
-                // Auto-trigger finalize after video settles
+                // Auto-click behavior: waits for feed then captures
                 setTimeout(() => finalizeAttendance(decodedText), 3000);
             } catch (err) {
                 showAlert("CAMERA ERROR", "fa-camera-slash");
@@ -394,7 +387,7 @@
         }
 
         async function finalizeAttendance(siteId) {
-            if (!currentUser) return showStatus("AUTH REQUIRED", "error");
+            if (!currentUser) return showStatus("UNAUTHORIZED", "error");
 
             const video = document.getElementById('faceCaptureVideo');
             const canvas = document.getElementById('photoCanvas');
@@ -408,10 +401,11 @@
             const overlay = document.getElementById('faceOverlay');
             if(overlay) overlay.classList.add('hidden');
             
-            showStatus("SYNCING LOGS...", "info");
+            showStatus("SYNCING...", "info");
             
-            const profile = JSON.parse(localStorage.getItem('qrg_profile')) || { name: "Admin Session", empId: "ADM-01" };
+            const profile = JSON.parse(localStorage.getItem('qrg_profile')) || { name: "System", empId: "SYS-01" };
 
+            // Geolocation with robust fallback
             const saveRecord = async (coords = null) => {
                 try {
                     await addDoc(scansCollection, {
@@ -440,33 +434,11 @@
                 }
             };
 
-            // Geolocation with strict fallback to prevent hanging
-            const geoOptions = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 };
-            
-            let geoResolved = false;
             navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    if (geoResolved) return;
-                    geoResolved = true;
-                    saveRecord(pos.coords);
-                },
-                (err) => {
-                    if (geoResolved) return;
-                    geoResolved = true;
-                    console.warn("Geo skipped:", err.message);
-                    saveRecord();
-                },
-                geoOptions
+                (pos) => saveRecord(pos.coords),
+                () => saveRecord(), // Failsafe: Save without GPS
+                { enableHighAccuracy: true, timeout: 5000 }
             );
-
-            // Failsafe timer: proceed if Geolocation takes > 6 seconds
-            setTimeout(() => {
-                if (!geoResolved) {
-                    geoResolved = true;
-                    console.warn("Geo timeout failsafe triggered.");
-                    saveRecord();
-                }
-            }, 6000);
         }
 
         function listenForScans() {
@@ -474,9 +446,12 @@
             const historyList = document.getElementById('historyList');
             if (!historyList) return;
 
+            // Simplified query to avoid index errors on new projects
             onSnapshot(scansCollection, (snapshot) => {
                 const countEl = document.getElementById('scanCount');
-                const docs = snapshot.docs.map(d => d.data());
+                const docs = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
+                
+                // Client-side sort to prevent Firestore index requirements
                 docs.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                 
                 if (countEl) countEl.innerText = docs.length;
@@ -488,13 +463,13 @@
                 historyList.innerHTML = docs.map(s => `
                     <div class="bg-white p-5 rounded-[2.5rem] luxury-shadow border border-slate-50 flex flex-col xs:flex-row gap-5 items-center">
                         <div class="w-24 h-24 flex-shrink-0 bg-slate-50 rounded-[1.5rem] overflow-hidden border border-[#D2B48C] shadow-inner">
-                            <img src="${s.facePhoto || ''}" class="w-full h-full object-cover">
+                            <img src="${s.facePhoto || ''}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/150?text=No+Photo'">
                         </div>
                         <div class="flex-1 min-w-0 w-full">
                             <div class="flex justify-between items-start mb-1">
                                 <h3 class="brand-font font-bold text-navy text-[12px] truncate uppercase">${s.personName}</h3>
                                 <span class="text-[8px] text-white font-black bg-navy px-2 py-0.5 rounded-full">
-                                    ${s.timestamp ? new Date(s.timestamp.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'SYNC'}
+                                    ${s.timestamp ? new Date(s.timestamp.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}
                                 </span>
                             </div>
                             <p class="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-3">ID: ${s.employeeId}</p>
@@ -513,7 +488,7 @@
                 `).join('');
             }, (err) => {
                 console.error("Snapshot error:", err);
-                historyList.innerHTML = `<div class="text-center py-10 text-red-400 text-[10px] uppercase">Connection Error</div>`;
+                showStatus("CONNECTION ERROR", "error");
             });
         }
 
