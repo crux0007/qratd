@@ -3,198 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Guard Pro - Secure Attendance</title>
+    <title>QR GUARD PRO | Secure Verification</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; background-color: #FFFFFF; color: #333333; }
-        #reader { border: none !important; }
-        #reader video { border-radius: 1.5rem; object-fit: cover; }
-        .admin-only { display: none; }
-        #faceCaptureVideo { transform: scaleX(-1); border-radius: 1.5rem; }
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap');
         
-        /* Custom Palette Constants */
-        .bg-navy { background-color: #001B3D; }
-        .bg-tan { background-color: #D2B48C; }
-        .text-charcoal { color: #333333; }
-        .border-charcoal { border-color: #333333; }
+        :root {
+            --navy: #001B3D;
+            --tan: #D2B48C;
+            --charcoal: #333333;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #FFFFFF; 
+            color: var(--charcoal);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .brand-font { 
+            font-family: 'Cinzel', serif; 
+            letter-spacing: 0.1em;
+        }
+
+        #reader { border: none !important; }
+        #reader video { border-radius: 2rem; object-fit: cover; }
+        
+        .admin-only { display: none; }
+        #faceCaptureVideo { 
+            transform: scaleX(-1); 
+            border-radius: 2rem; 
+            filter: contrast(1.05) brightness(1.02);
+        }
+
+        .luxury-shadow {
+            box-shadow: 0 20px 50px rgba(0, 27, 61, 0.08);
+        }
+
+        .logo-mark {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .logo-mark:hover {
+            transform: translateY(-2px);
+            filter: drop-shadow(0 4px 12px rgba(210, 180, 140, 0.4));
+        }
+
+        /* Message Box Fallback for alert() */
+        #customAlert {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            animation: slideDown 0.3s ease-out;
+        }
+        @keyframes slideDown {
+            from { transform: translate(-50%, -100%); opacity: 0; }
+            to { transform: translate(-50%, 0); opacity: 1; }
+        }
     </style>
 </head>
 <body class="min-h-screen">
 
-    <div id="app" class="max-w-md mx-auto min-h-screen flex flex-col p-6">
+    <!-- Custom Modal/Alert System -->
+    <div id="customAlert" class="w-[90%] max-w-sm bg-navy text-white p-4 rounded-2xl shadow-2xl flex items-center gap-4">
+        <i class="fas fa-info-circle text-tan"></i>
+        <p id="alertText" class="text-[10px] font-bold uppercase tracking-widest flex-1"></p>
+    </div>
+
+    <div id="app" class="max-w-md mx-auto min-h-screen flex flex-col p-8">
         
-        <!-- Header -->
-        <header class="flex justify-between items-center py-4 mb-8">
-            <div class="flex items-center gap-3">
-                <div class="bg-navy p-2.5 rounded-xl shadow-lg">
-                    <i class="fas fa-shield-halved text-white"></i>
-                </div>
-                <h1 class="font-black text-2xl tracking-tighter text-charcoal">QR GUARD <span class="text-[#001B3D]">PRO</span></h1>
+        <header class="flex flex-col items-center py-8 mb-8 border-b border-slate-100">
+            <div class="logo-mark mb-4">
+                <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M50 5L15 20V45C15 65.5 30 84.5 50 95C70 84.5 85 65.5 85 45V20L50 5Z" stroke="#001B3D" stroke-width="4" stroke-linejoin="round"/>
+                    <path d="M35 40H65M35 55H65M50 30V70" stroke="#D2B48C" stroke-width="3" stroke-linecap="square"/>
+                </svg>
             </div>
-            <!-- Admin Dashboard Toggle -->
-            <button id="toggleView" class="admin-only text-[10px] font-black tracking-widest text-white px-4 py-2 bg-navy rounded-full shadow-md active:scale-95 transition-transform">
-                DASHBOARD
+            <h1 class="brand-font font-black text-xl text-center text-[#001B3D]">
+                QR GUARD <span class="text-[#D2B48C]">PRO</span>
+            </h1>
+            <p class="text-[9px] uppercase tracking-[0.4em] text-slate-400 mt-2 font-bold">Secure Presence Protocol</p>
+            
+            <button id="toggleView" class="admin-only mt-6 text-[9px] font-black tracking-[0.3em] text-white px-8 py-3 bg-[#001B3D] rounded-full luxury-shadow active:scale-95 transition-all">
+                ADMINISTRATION
             </button>
         </header>
 
         <!-- VIEW 1: IDENTITY SETUP -->
         <main id="setupView" class="hidden flex-1 flex flex-col justify-center">
-            <div class="bg-white p-8 rounded-[2rem] shadow-2xl border border-slate-50">
-                <h2 class="text-2xl font-black mb-2 text-charcoal">Authorize Device</h2>
-                <p class="text-slate-400 text-sm mb-8 font-medium leading-relaxed">Please register this terminal to an employee profile. This action is permanent.</p>
+            <div class="bg-white p-10 rounded-[2.5rem] border border-slate-50 luxury-shadow">
+                <h2 class="brand-font text-xl font-bold mb-3 text-[#333333]">Identity Registration</h2>
+                <p class="text-slate-400 text-[11px] mb-10 font-medium leading-relaxed uppercase tracking-wider">Linking this secure terminal to an authorized staff profile.</p>
                 
-                <div class="space-y-5">
+                <div class="space-y-6">
                     <div>
-                        <label class="block text-[10px] font-black text-[#D2B48C] uppercase tracking-[0.2em] mb-2">Legal Staff Name</label>
-                        <input type="text" id="userName" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#D2B48C] outline-none font-bold text-charcoal" placeholder="e.g. Alexander Pierce">
+                        <label class="block text-[10px] font-black text-[#D2B48C] uppercase tracking-[0.2em] mb-3 px-1">Staff Legal Name</label>
+                        <input type="text" id="userName" class="w-full p-4 bg-slate-50 border-b-2 border-slate-100 rounded-t-xl focus:border-[#D2B48C] focus:bg-white outline-none font-bold text-[#333333] transition-all" placeholder="E.G. JULIAN VANCE">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-black text-[#D2B48C] uppercase tracking-[0.2em] mb-2">Corporate ID Number</label>
-                        <input type="text" id="userId" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-[#D2B48C] outline-none font-mono font-bold" placeholder="EMP-XXXX">
+                        <label class="block text-[10px] font-black text-[#D2B48C] uppercase tracking-[0.2em] mb-3 px-1">Personnel ID</label>
+                        <input type="text" id="userId" class="w-full p-4 bg-slate-50 border-b-2 border-slate-100 rounded-t-xl focus:border-[#D2B48C] focus:bg-white outline-none font-mono font-bold text-[#333333] transition-all" placeholder="EMP-000">
                     </div>
-                    <button id="saveProfile" class="w-full bg-navy text-white font-black py-5 rounded-2xl shadow-xl hover:bg-[#002a5e] transition-all active:scale-95 mt-4">
-                        REGISTER TERMINAL
+                    <button id="saveProfile" class="w-full bg-[#001B3D] text-white brand-font text-xs font-bold py-5 rounded-2xl shadow-xl hover:shadow-2xl transition-all active:scale-95 mt-6">
+                        AUTHORIZE ACCESS
                     </button>
                 </div>
             </div>
         </main>
 
         <!-- VIEW 2: SCANNER & FACE CAPTURE -->
-        <main id="scannerView" class="hidden flex-1 flex flex-col gap-6">
-            <!-- Professional Badge in Tan & Navy -->
-            <div id="userBadge" class="bg-navy p-6 rounded-[2rem] flex items-center justify-between shadow-2xl relative overflow-hidden">
-                <div class="flex items-center gap-5 relative z-10">
-                    <div class="w-12 h-12 bg-tan rounded-2xl flex items-center justify-center text-navy shadow-inner transform rotate-3">
-                        <i class="fas fa-user-tie text-lg"></i>
-                    </div>
-                    <div>
-                        <p id="badgeName" class="text-white font-black text-lg leading-none mb-1.5"></p>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[8px] font-black text-navy bg-tan px-2 py-0.5 rounded-full uppercase tracking-widest">Active ID</span>
-                            <p id="badgeId" class="text-[10px] text-slate-300 font-mono font-bold"></p>
-                        </div>
-                    </div>
+        <main id="scannerView" class="hidden flex-1 flex flex-col gap-8">
+            <div id="userBadge" class="bg-[#001B3D] p-8 rounded-[2.5rem] flex flex-col items-center shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 p-4">
+                    <div class="w-2 h-2 bg-[#D2B48C] rounded-full animate-pulse"></div>
                 </div>
-                <div class="absolute -right-4 -bottom-4 opacity-10">
-                    <i class="fas fa-shield-halved text-6xl text-white"></i>
-                </div>
-            </div>
-
-            <!-- Scanning Area -->
-            <div class="bg-white p-2 rounded-[2.5rem] shadow-sm border border-slate-100 relative">
-                <div id="reader" class="overflow-hidden rounded-[2rem] bg-slate-50 aspect-square"></div>
                 
-                <!-- Biometric Overlay -->
-                <div id="faceOverlay" class="hidden absolute inset-0 bg-white p-6 z-10 flex flex-col items-center justify-center rounded-[2.5rem]">
-                    <div class="w-full flex justify-between items-center mb-4 px-2">
-                        <p class="text-[10px] font-black text-navy uppercase tracking-[0.3em]">Identity Verification</p>
-                        <div class="flex gap-1">
-                            <div class="w-1.5 h-1.5 bg-tan rounded-full animate-pulse"></div>
-                            <div class="w-1.5 h-1.5 bg-tan rounded-full animate-pulse delay-75"></div>
-                            <div class="w-1.5 h-1.5 bg-tan rounded-full animate-pulse delay-150"></div>
-                        </div>
-                    </div>
-                    <video id="faceCaptureVideo" autoplay muted playsinline class="w-full h-full object-cover border-4 border-tan shadow-2xl"></video>
+                <div class="w-16 h-16 bg-[#D2B48C] rounded-full flex items-center justify-center text-[#001B3D] mb-4 shadow-inner">
+                    <i class="fas fa-user-tie text-xl"></i>
+                </div>
+                
+                <p id="badgeName" class="text-white brand-font font-bold text-lg mb-1"></p>
+                <div class="flex items-center gap-3">
+                    <span class="text-[8px] font-black text-[#001B3D] bg-[#D2B48C] px-3 py-1 rounded-full uppercase tracking-widest">Authorized</span>
+                    <p id="badgeId" class="text-[10px] text-slate-400 font-mono font-bold"></p>
+                </div>
+                
+                <div class="absolute left-[-10%] bottom-[-10%] opacity-[0.03] pointer-events-none">
+                    <i class="fas fa-shield-halved text-[120px] text-white"></i>
                 </div>
             </div>
 
-            <div id="statusMessage" class="hidden p-4 rounded-2xl text-center text-xs font-black uppercase tracking-widest shadow-sm"></div>
+            <div class="bg-white p-3 rounded-[3rem] border border-slate-100 luxury-shadow relative">
+                <div id="reader" class="overflow-hidden rounded-[2.5rem] bg-slate-50 aspect-square"></div>
+                
+                <div id="faceOverlay" class="hidden absolute inset-0 bg-white p-8 z-10 flex flex-col items-center justify-center rounded-[3rem]">
+                    <div class="w-full flex justify-center items-center mb-6">
+                        <p class="brand-font text-[10px] font-bold text-[#001B3D] uppercase tracking-[0.4em]">Biometric Sync</p>
+                    </div>
+                    <video id="faceCaptureVideo" autoplay muted playsinline class="w-full h-full object-cover rounded-[2rem] border-2 border-[#D2B48C] shadow-2xl"></video>
+                </div>
+            </div>
 
-            <canvas id="photoCanvas" class="hidden" width="400" height="400"></canvas>
+            <div id="statusMessage" class="hidden p-4 rounded-2xl text-center brand-font text-[9px] font-black uppercase tracking-[0.3em]"></div>
+
+            <canvas id="photoCanvas" class="hidden" width="500" height="500"></canvas>
             
-            <div class="flex items-start gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-100">
-                <i class="fas fa-circle-check text-[#D2B48C] text-lg"></i>
-                <p class="text-[10px] leading-relaxed text-charcoal font-bold opacity-70">
-                    This terminal is currently synching encrypted biometric data, GPS coordinates, and server-side timestamps to the administrative cloud.
+            <div class="flex flex-col items-center text-center gap-3 px-6">
+                <p class="text-[9px] leading-relaxed text-slate-400 font-bold uppercase tracking-widest opacity-60">
+                    Secure Session • GPS Hard-Link • Face ID Logged
                 </p>
             </div>
         </main>
 
         <!-- VIEW 3: PRIVATE OWNER DASHBOARD -->
         <main id="historyView" class="hidden flex-1 flex flex-col gap-6">
-            <div class="flex items-center justify-between px-2">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between px-2 mb-4 gap-4">
                 <div>
-                    <h2 class="text-xl font-black text-charcoal tracking-tighter uppercase">Activity Monitor</h2>
-                    <p class="text-[10px] text-tan font-black uppercase tracking-[0.2em]">Verified Logs</p>
+                    <h2 class="brand-font text-lg font-black text-[#333333] uppercase">Vault History</h2>
+                    <p class="text-[9px] text-[#D2B48C] font-black uppercase tracking-[0.3em]">Encrypted Logs</p>
                 </div>
-                <div class="flex items-center gap-2 bg-navy px-4 py-2 rounded-full shadow-lg">
-                    <span class="text-[10px] font-black text-white uppercase tracking-widest">Logs</span>
-                    <span id="scanCount" class="bg-tan px-2 py-0.5 rounded text-[10px] font-black text-navy">0</span>
+                <div class="flex items-center gap-3">
+                    <button id="clearLogsBtn" class="text-[8px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors">
+                        Clear Database
+                    </button>
+                    <div class="bg-[#001B3D] px-4 py-2 rounded-full flex items-center gap-2">
+                        <span id="scanCount" class="text-[10px] font-black text-[#D2B48C]">0</span>
+                    </div>
                 </div>
             </div>
             
-            <div id="historyList" class="flex flex-col gap-4 pb-24">
-                <div class="text-center py-20 text-slate-300 font-bold uppercase tracking-widest text-[10px]">Establishing secure link...</div>
+            <div id="historyList" class="flex flex-col gap-5 pb-32">
+                <div class="text-center py-20 text-slate-200 brand-font text-xs uppercase tracking-[0.5em]">Syncing...</div>
             </div>
         </main>
 
-        <footer class="mt-auto py-8 text-center">
-            <p class="text-slate-300 text-[10px] uppercase tracking-[0.5em] font-black">
-                System Secured by <span class="text-navy">QR Guard</span>
+        <footer class="mt-auto py-10 text-center">
+            <p class="text-slate-200 text-[8px] uppercase tracking-[0.8em] font-black">
+                EST. 2026 • QR GUARD
             </p>
         </footer>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyDKn3JVDodxBa7M0uuaVPnNWUhwcDfayy0",
-            authDomain: "qratd-5662a.firebaseapp.com",
-            projectId: "qratd-5662a",
-            storageBucket: "qratd-5662a.firebasestorage.app",
-            messagingSenderId: "820055328673",
-            appId: "1:820055328673:web:b1209fc5af3b16cd19ede0",
-            measurementId: "G-6C80ZM4CH7"
-        };
-
+        // Environment Variables
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'qr-guard-pro-default';
+        
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        const scansCollection = collection(db, 'artifacts', firebaseConfig.projectId, 'public', 'data', 'scans');
+        
+        // Rule 1: Strict Path Structure
+        const scansCollection = collection(db, 'artifacts', appId, 'public', 'data', 'scans');
 
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = urlParams.get('admin') === 'true';
         
         let html5QrCode = null;
         let faceStream = null;
+        let currentUser = null;
+
+        function showAlert(msg) {
+            const alertEl = document.getElementById('customAlert');
+            const alertText = document.getElementById('alertText');
+            alertText.innerText = msg;
+            alertEl.style.display = 'flex';
+            setTimeout(() => { alertEl.style.display = 'none'; }, 4000);
+        }
 
         async function init() {
-            try {
-                await signInAnonymously(auth);
-                
-                if (isAdmin) {
-                    document.getElementById('toggleView').style.display = 'block';
-                    document.getElementById('toggleView').innerText = "SCANNER";
-                    showView('historyView');
-                    listenForScans();
-                } else {
-                    const profile = JSON.parse(localStorage.getItem('qrg_profile'));
-                    if (!profile) {
-                        showView('setupView');
+            // Rule 3: Auth Before Queries
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
-                        document.getElementById('badgeName').innerText = profile.name;
-                        document.getElementById('badgeId').innerText = "ID: " + profile.empId;
-                        showView('scannerView');
-                        startScanner();
+                        await signInAnonymously(auth);
                     }
+                } catch (error) {
+                    console.error("Auth failed:", error);
+                    showStatus("CONNECTION DENIED", "error");
                 }
-            } catch (error) {
-                showStatus("CONNECTION ERROR", "error");
+            };
+
+            onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+                if (user) {
+                    setupApp();
+                }
+            });
+
+            await initAuth();
+        }
+
+        function setupApp() {
+            if (isAdmin) {
+                document.getElementById('toggleView').style.display = 'block';
+                document.getElementById('toggleView').innerText = "ACCESS SCANNER";
+                showView('historyView');
+                listenForScans();
+            } else {
+                const profile = JSON.parse(localStorage.getItem('qrg_profile'));
+                if (!profile) {
+                    showView('setupView');
+                } else {
+                    document.getElementById('badgeName').innerText = profile.name;
+                    document.getElementById('badgeId').innerText = "ID: " + profile.empId;
+                    showView('scannerView');
+                    startScanner();
+                }
             }
         }
 
         document.getElementById('saveProfile').onclick = () => {
             const name = document.getElementById('userName').value.trim();
             const empId = document.getElementById('userId').value.trim();
-            if(!name || !empId) return alert("All fields must be completed.");
+            if(!name || !empId) return showAlert("Credentials required for authorization.");
             localStorage.setItem('qrg_profile', JSON.stringify({ name, empId }));
             location.reload();
+        };
+
+        document.getElementById('clearLogsBtn').onclick = async () => {
+            if (!isAdmin) return;
+            if (confirm("Permanently wipe encrypted history logs?")) {
+                showStatus("WIPING VAULT...", "info");
+                try {
+                    const querySnapshot = await getDocs(scansCollection);
+                    const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
+                    await Promise.all(deletePromises);
+                    showStatus("VAULT CLEARED", "success");
+                    setTimeout(() => showStatus("", "hide"), 3000);
+                } catch (e) {
+                    showStatus("WIPE FAILED", "error");
+                }
+            }
         };
 
         function showView(id) {
@@ -207,7 +297,7 @@
                 try {
                     await html5QrCode.stop();
                     html5QrCode = null;
-                } catch (e) { console.error("Error stopping scanner", e); }
+                } catch (e) {}
             }
         }
 
@@ -215,13 +305,12 @@
             if (html5QrCode) return;
             html5QrCode = new Html5Qrcode("reader");
             html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScanSuccess)
-            .catch(() => showStatus("CAMERA UNAVAILABLE", "error"));
+            .catch(() => showStatus("HARDWARE BLOCKED", "error"));
         }
 
         async function onScanSuccess(decodedText) {
             await html5QrCode.pause(true);
             showStatus("SITE IDENTIFIED", "info");
-            
             const overlay = document.getElementById('faceOverlay');
             const video = document.getElementById('faceCaptureVideo');
             overlay.classList.remove('hidden');
@@ -238,23 +327,19 @@
         }
 
         async function finalizeAttendance(siteId) {
+            if (!currentUser) return showStatus("UNAUTHORIZED", "error");
+
             const video = document.getElementById('faceCaptureVideo');
             const canvas = document.getElementById('photoCanvas');
             const ctx = canvas.getContext('2d');
-            
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const photoData = canvas.toDataURL('image/jpeg', 0.5);
             
             if (faceStream) faceStream.getTracks().forEach(track => track.stop());
             document.getElementById('faceOverlay').classList.add('hidden');
-
             showStatus("ENCRYPTING...", "info");
             
-            // Get profile or use Admin identity if in admin mode without profile
-            let profile = JSON.parse(localStorage.getItem('qrg_profile'));
-            if (!profile && isAdmin) {
-                profile = { name: "System Administrator", empId: "ADMIN-TEST" };
-            }
+            let profile = JSON.parse(localStorage.getItem('qrg_profile')) || (isAdmin ? { name: "System Admin", empId: "ADMIN-000" } : null);
 
             navigator.geolocation.getCurrentPosition(async (pos) => {
                 try {
@@ -265,11 +350,11 @@
                         timestamp: serverTimestamp(),
                         latitude: pos.coords.latitude,
                         longitude: pos.coords.longitude,
-                        facePhoto: photoData
+                        facePhoto: photoData,
+                        userId: currentUser.uid
                     });
-                    
-                    showStatus("SUCCESSFULLY LOGGED", "success");
-                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                    showStatus("LOGGED SUCCESSFULLY", "success");
+                    if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
                     setTimeout(() => { showStatus("", "hide"); if(html5QrCode) html5QrCode.resume(); }, 5000);
                 } catch (e) {
                     showStatus("SYNC FAILED", "error");
@@ -282,75 +367,82 @@
         }
 
         function listenForScans() {
+            if (!currentUser) return;
+            
             onSnapshot(scansCollection, (snapshot) => {
                 const list = document.getElementById('historyList');
                 const count = document.getElementById('scanCount');
-                const docs = [];
-                snapshot.forEach(doc => docs.push(doc.data()));
-                docs.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+                
+                // Rule 2: Fetch all then sort in memory
+                const docs = snapshot.docs.map(d => d.data());
+                docs.sort((a,b) => {
+                    const timeA = a.timestamp?.seconds || 0;
+                    const timeB = b.timestamp?.seconds || 0;
+                    return timeB - timeA;
+                });
                 
                 count.innerText = docs.length;
                 if (docs.length === 0) {
-                    list.innerHTML = '<div class="text-center py-20 text-slate-300 font-bold uppercase tracking-widest text-[10px]">No logs found</div>';
+                    list.innerHTML = '<div class="text-center py-20 text-slate-200 brand-font text-[10px] uppercase tracking-[0.4em]">Empty Vault</div>';
                     return;
                 }
-
+                
                 list.innerHTML = docs.map(s => `
-                    <div class="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 flex gap-5">
-                        <div class="w-20 h-20 flex-shrink-0 bg-slate-50 rounded-2xl overflow-hidden border-2 border-tan shadow-inner">
-                            <img src="${s.facePhoto || ''}" class="w-full h-full object-cover">
+                    <div class="bg-white p-6 rounded-[2.5rem] luxury-shadow border border-slate-50 flex flex-col xs:flex-row gap-6 items-center">
+                        <div class="w-24 h-24 flex-shrink-0 bg-slate-50 rounded-[1.5rem] overflow-hidden border border-[#D2B48C] luxury-shadow">
+                            <img src="${s.facePhoto || ''}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/150?text=No+Photo'">
                         </div>
-                        <div class="flex-1 min-w-0 flex flex-col justify-center">
-                            <div class="flex justify-between items-start mb-1">
-                                <h3 class="font-black text-navy text-sm truncate uppercase tracking-tight">${s.personName || 'Anonymous'}</h3>
-                                <span class="text-[9px] text-white font-black bg-navy px-2 py-0.5 rounded-full">
+                        <div class="flex-1 min-w-0 w-full">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="brand-font font-bold text-navy text-[13px] truncate uppercase tracking-tight">${s.personName}</h3>
+                                <span class="text-[9px] text-white font-black bg-navy px-2 py-0.5 rounded-full whitespace-nowrap">
                                     ${s.timestamp ? new Date(s.timestamp.seconds * 1000).toLocaleTimeString() : '...'}
                                 </span>
                             </div>
-                            <p class="text-[9px] text-slate-400 font-black uppercase tracking-[0.1em] mb-3">ID: ${s.employeeId || '???'}</p>
-                            <div class="flex items-center justify-between">
-                                <div class="flex items-center gap-1 text-[9px] text-navy font-black uppercase">
-                                    <i class="fas fa-location-dot text-tan"></i>
-                                    ${s.siteLocation || 'Field Site'}
+                            <p class="text-[9px] text-slate-400 font-black uppercase tracking-[0.1em] mb-4">ID: ${s.employeeId}</p>
+                            <div class="flex items-center justify-between mt-auto">
+                                <div class="flex items-center gap-2 text-[9px] text-navy font-black uppercase tracking-wider">
+                                    <i class="fas fa-location-dot text-[#D2B48C]"></i>
+                                    <span class="truncate max-w-[100px]">${s.siteLocation}</span>
                                 </div>
                                 <a href="https://www.google.com/maps?q=${s.latitude},${s.longitude}" target="_blank" 
-                                   class="text-[8px] font-black text-tan underline uppercase tracking-widest">
+                                   class="text-[8px] font-black text-[#D2B48C] underline uppercase tracking-[0.2em] hover:text-[#001B3D] transition-colors">
                                    GPS MAP
                                 </a>
                             </div>
                         </div>
                     </div>
                 `).join('');
+            }, (error) => {
+                console.error("Firestore Error:", error);
             });
         }
 
         function showStatus(msg, type) {
             const el = document.getElementById('statusMessage');
             if (type === 'hide') { el.classList.add('hidden'); return; }
-            el.className = "p-4 rounded-2xl text-center text-[10px] font-black uppercase tracking-[0.2em] mt-2 " + 
-                (type === 'error' ? 'bg-red-50 text-red-700' : type === 'success' ? 'bg-navy text-tan' : 'bg-tan text-navy');
+            el.className = "p-4 rounded-2xl text-center brand-font text-[9px] font-black uppercase tracking-[0.3em] mt-4 " + 
+                (type === 'error' ? 'bg-red-50 text-red-700' : type === 'success' ? 'bg-[#001B3D] text-[#D2B48C]' : 'bg-[#D2B48C] text-[#001B3D]');
             el.innerText = msg;
             el.classList.remove('hidden');
         }
 
         document.getElementById('toggleView').onclick = async () => {
+            const scannerView = document.getElementById('scannerView');
             const isShowingHistory = scannerView.classList.contains('hidden');
             if(isShowingHistory) {
-                const profile = JSON.parse(localStorage.getItem('qrg_profile'));
-                document.getElementById('badgeName').innerText = profile ? profile.name : "System Administrator";
-                document.getElementById('badgeId').innerText = "ID: " + (profile ? profile.empId : "ADMIN-TEST");
-                
                 showView('scannerView');
                 startScanner();
-                document.getElementById('toggleView').innerText = "DASHBOARD";
+                document.getElementById('toggleView').innerText = "VIEW DASHBOARD";
             } else {
                 await stopScanner();
                 showView('historyView');
-                document.getElementById('toggleView').innerText = "SCANNER";
+                document.getElementById('toggleView').innerText = "ACCESS SCANNER";
+                listenForScans();
             }
         };
 
-        init();
+        window.onload = init;
     </script>
 </body>
 </html>
