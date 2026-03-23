@@ -1,3 +1,5 @@
+Qr old
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,7 +23,6 @@
             background-color: #FFFFFF; 
             color: var(--charcoal);
             -webkit-font-smoothing: antialiased;
-            overflow-x: hidden;
         }
 
         .brand-font { 
@@ -32,6 +33,7 @@
         #reader { border: none !important; }
         #reader video { border-radius: 2rem; object-fit: cover; }
         
+        .admin-only { display: none; }
         #faceCaptureVideo { 
             transform: scaleX(-1); 
             border-radius: 2rem; 
@@ -42,42 +44,24 @@
             box-shadow: 0 20px 50px rgba(0, 27, 61, 0.08);
         }
 
-        #customAlert {
-            display: none;
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            animation: slideDown 0.3s ease-out;
+        /* Minimalist Logo Animation */
+        .logo-mark {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        @keyframes slideDown {
-            from { transform: translate(-50%, -100%); opacity: 0; }
-            to { transform: translate(-50%, 0); opacity: 1; }
-        }
-
-        .pulse-border {
-            animation: pulse-gold 2s infinite;
-        }
-        @keyframes pulse-gold {
-            0% { border-color: rgba(210, 180, 140, 0.4); }
-            50% { border-color: rgba(210, 180, 140, 1); }
-            100% { border-color: rgba(210, 180, 140, 0.4); }
+        .logo-mark:hover {
+            transform: translateY(-2px);
+            filter: drop-shadow(0 4px 12px rgba(210, 180, 140, 0.4));
         }
     </style>
 </head>
 <body class="min-h-screen">
 
-    <!-- Custom Alert UI -->
-    <div id="customAlert" class="w-[90%] max-w-sm bg-navy text-white p-4 rounded-2xl shadow-2xl flex items-center gap-4">
-        <i class="fas fa-shield-check text-tan" id="alertIcon"></i>
-        <p id="alertText" class="text-[10px] font-bold uppercase tracking-widest flex-1"></p>
-    </div>
-
     <div id="app" class="max-w-md mx-auto min-h-screen flex flex-col p-8">
         
+        <!-- Luxury Minimalist Header -->
         <header class="flex flex-col items-center py-8 mb-8 border-b border-slate-100">
             <div class="logo-mark mb-4">
+                <!-- Minimalist SVG Monogram Shield -->
                 <svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M50 5L15 20V45C15 65.5 30 84.5 50 95C70 84.5 85 65.5 85 45V20L50 5Z" stroke="#001B3D" stroke-width="4" stroke-linejoin="round"/>
                     <path d="M35 40H65M35 55H65M50 30V70" stroke="#D2B48C" stroke-width="3" stroke-linecap="square"/>
@@ -88,7 +72,8 @@
             </h1>
             <p class="text-[9px] uppercase tracking-[0.4em] text-slate-400 mt-2 font-bold">Secure Presence Protocol</p>
             
-            <button id="toggleView" class="hidden mt-6 text-[9px] font-black tracking-[0.3em] text-white px-8 py-3 bg-[#001B3D] rounded-full luxury-shadow active:scale-95 transition-all">
+            <!-- Admin Dashboard Toggle -->
+            <button id="toggleView" class="admin-only mt-6 text-[9px] font-black tracking-[0.3em] text-white px-8 py-3 bg-[#001B3D] rounded-full luxury-shadow active:scale-95 transition-all">
                 ADMINISTRATION
             </button>
         </header>
@@ -97,7 +82,7 @@
         <main id="setupView" class="hidden flex-1 flex flex-col justify-center">
             <div class="bg-white p-10 rounded-[2.5rem] border border-slate-50 luxury-shadow">
                 <h2 class="brand-font text-xl font-bold mb-3 text-[#333333]">Identity Registration</h2>
-                <p class="text-slate-400 text-[11px] mb-10 font-medium leading-relaxed uppercase tracking-wider">Linking this terminal to an authorized staff profile.</p>
+                <p class="text-slate-400 text-[11px] mb-10 font-medium leading-relaxed uppercase tracking-wider">Linking this secure terminal to an authorized staff profile.</p>
                 
                 <div class="space-y-6">
                     <div>
@@ -117,6 +102,7 @@
 
         <!-- VIEW 2: SCANNER & FACE CAPTURE -->
         <main id="scannerView" class="hidden flex-1 flex flex-col gap-8">
+            <!-- Executive Badge -->
             <div id="userBadge" class="bg-[#001B3D] p-8 rounded-[2.5rem] flex flex-col items-center shadow-2xl relative overflow-hidden">
                 <div class="absolute top-0 right-0 p-4">
                     <div class="w-2 h-2 bg-[#D2B48C] rounded-full animate-pulse"></div>
@@ -131,25 +117,29 @@
                     <span class="text-[8px] font-black text-[#001B3D] bg-[#D2B48C] px-3 py-1 rounded-full uppercase tracking-widest">Authorized</span>
                     <p id="badgeId" class="text-[10px] text-slate-400 font-mono font-bold"></p>
                 </div>
-            </div>
-
-            <div class="bg-white p-3 rounded-[3rem] border border-slate-100 luxury-shadow relative min-h-[300px] flex items-center justify-center">
-                <div id="reader" class="w-full overflow-hidden rounded-[2.5rem] bg-slate-50 aspect-square"></div>
                 
-                <div id="faceOverlay" class="hidden absolute inset-0 bg-white p-8 z-10 flex flex-col items-center justify-center rounded-[3rem]">
-                    <div class="w-full flex justify-center items-center mb-6">
-                        <p class="brand-font text-[10px] font-bold text-[#001B3D] uppercase tracking-[0.4em] animate-pulse">Biometric Syncing...</p>
-                    </div>
-                    <div class="relative w-full aspect-square">
-                        <video id="faceCaptureVideo" autoplay muted playsinline class="w-full h-full object-cover rounded-[2rem] border-4 pulse-border shadow-2xl"></video>
-                        <div class="absolute inset-0 border-[20px] border-white/10 rounded-[2rem] pointer-events-none"></div>
-                    </div>
+                <!-- Background Decoration -->
+                <div class="absolute left-[-10%] bottom-[-10%] opacity-[0.03] pointer-events-none">
+                    <i class="fas fa-shield-halved text-[120px] text-white"></i>
                 </div>
             </div>
 
-            <div id="statusMessage" class="hidden p-4 rounded-2xl text-center brand-font text-[9px] font-black uppercase tracking-[0.3em] transition-all"></div>
+            <!-- Verification Terminal -->
+            <div class="bg-white p-3 rounded-[3rem] border border-slate-100 luxury-shadow relative">
+                <div id="reader" class="overflow-hidden rounded-[2.5rem] bg-slate-50 aspect-square"></div>
+                
+                <!-- Biometric Overlay -->
+                <div id="faceOverlay" class="hidden absolute inset-0 bg-white p-8 z-10 flex flex-col items-center justify-center rounded-[3rem]">
+                    <div class="w-full flex justify-center items-center mb-6">
+                        <p class="brand-font text-[10px] font-bold text-[#001B3D] uppercase tracking-[0.4em]">Biometric Sync</p>
+                    </div>
+                    <video id="faceCaptureVideo" autoplay muted playsinline class="w-full h-full object-cover rounded-[2rem] border-2 border-[#D2B48C] shadow-2xl"></video>
+                </div>
+            </div>
 
-            <canvas id="photoCanvas" class="hidden" width="600" height="600"></canvas>
+            <div id="statusMessage" class="hidden p-4 rounded-2xl text-center brand-font text-[9px] font-black uppercase tracking-[0.3em]"></div>
+
+            <canvas id="photoCanvas" class="hidden" width="500" height="500"></canvas>
             
             <div class="flex flex-col items-center text-center gap-3 px-6">
                 <p class="text-[9px] leading-relaxed text-slate-400 font-bold uppercase tracking-widest opacity-60">
@@ -160,16 +150,12 @@
 
         <!-- VIEW 3: PRIVATE OWNER DASHBOARD -->
         <main id="historyView" class="hidden flex-1 flex flex-col gap-6">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between px-2 mb-4 gap-4">
+            <div class="flex items-center justify-between px-2 mb-4">
                 <div>
                     <h2 class="brand-font text-lg font-black text-[#333333] uppercase">Vault History</h2>
                     <p class="text-[9px] text-[#D2B48C] font-black uppercase tracking-[0.3em]">Encrypted Logs</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <div id="deleteConfirmState" class="hidden flex items-center gap-2">
-                        <button id="cancelDelete" class="text-[8px] font-black text-slate-400 uppercase tracking-widest px-3 py-1">Cancel</button>
-                        <button id="confirmDelete" class="text-[8px] font-black text-white bg-red-500 px-3 py-1 rounded-full uppercase tracking-widest">Confirm Wipe</button>
-                    </div>
                     <button id="clearLogsBtn" class="text-[8px] font-black text-red-400 uppercase tracking-widest hover:text-red-600 transition-colors">
                         Clear Database
                     </button>
@@ -180,7 +166,7 @@
             </div>
             
             <div id="historyList" class="flex flex-col gap-5 pb-32">
-                <div class="text-center py-20 text-slate-200 brand-font text-xs uppercase tracking-[0.5em]">Loading Logs...</div>
+                <div class="text-center py-20 text-slate-200 brand-font text-xs uppercase tracking-[0.5em]">Syncing...</div>
             </div>
         </main>
 
@@ -194,10 +180,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // --- ADAPTIVE FIREBASE CONFIG ---
-        let firebaseConfig = {
+        const firebaseConfig = {
             apiKey: "AIzaSyDKn3JVDodxBa7M0uuaVPnNWUhwcDfayy0",
             authDomain: "qratd-5662a.firebaseapp.com",
             projectId: "qratd-5662a",
@@ -207,131 +192,69 @@
             measurementId: "G-6C80ZM4CH7"
         };
 
-        let internalAppId = "qr-guard-pro-default";
-        let initialToken = null;
-
-        // Overlay Canvas values if present
-        if (typeof __firebase_config !== 'undefined') {
-            firebaseConfig = JSON.parse(__firebase_config);
-            internalAppId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
-            initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        }
-        
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
-        
-        // ADAPTIVE PATHING: Prevent "Database Error" on personal deployments
-        const scansCollection = (typeof __firebase_config !== 'undefined') 
-            ? collection(db, 'artifacts', internalAppId, 'public', 'data', 'scans')
-            : collection(db, 'scans');
+        const scansCollection = collection(db, 'artifacts', firebaseConfig.projectId, 'public', 'data', 'scans');
 
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = urlParams.get('admin') === 'true';
         
         let html5QrCode = null;
         let faceStream = null;
-        let currentUser = null;
-
-        function showAlert(msg, icon = "fa-shield-check") {
-            const alertEl = document.getElementById('customAlert');
-            const alertText = document.getElementById('alertText');
-            const alertIcon = document.getElementById('alertIcon');
-            if(!alertEl || !alertText) return;
-            alertText.innerText = msg;
-            alertIcon.className = `fas ${icon} text-tan`;
-            alertEl.style.display = 'flex';
-            setTimeout(() => { alertEl.style.display = 'none'; }, 4000);
-        }
-
-        function showStatus(msg, type) {
-            const el = document.getElementById('statusMessage');
-            if (!el) return;
-            if (type === 'hide') { el.classList.add('hidden'); return; }
-            el.className = "p-4 rounded-2xl text-center brand-font text-[9px] font-black uppercase tracking-[0.3em] mt-4 " + 
-                (type === 'error' ? 'bg-red-50 text-red-700' : type === 'success' ? 'bg-[#001B3D] text-[#D2B48C]' : 'bg-[#D2B48C] text-[#001B3D]');
-            el.innerText = msg;
-            el.classList.remove('hidden');
-        }
-
-        function showView(id) {
-            ['setupView', 'scannerView', 'historyView'].forEach(v => {
-                document.getElementById(v).classList.add('hidden');
-            });
-            document.getElementById(id).classList.remove('hidden');
-        }
 
         async function init() {
-            onAuthStateChanged(auth, (user) => {
-                currentUser = user;
-                if (user) setupUI();
-            });
-
             try {
-                if (initialToken) await signInWithCustomToken(auth, initialToken);
-                else await signInAnonymously(auth);
-            } catch (error) {
-                console.error("Auth error:", error);
-                showStatus("CONNECTION DENIED", "error");
-            }
-        }
-
-        function setupUI() {
-            if (isAdmin) {
-                document.getElementById('toggleView').classList.remove('hidden');
-                document.getElementById('toggleView').innerText = "ACCESS SCANNER";
-                showView('historyView');
-                listenForScans();
-            } else {
-                const profile = JSON.parse(localStorage.getItem('qrg_profile'));
-                if (!profile) {
-                    showView('setupView');
+                await signInAnonymously(auth);
+                if (isAdmin) {
+                    document.getElementById('toggleView').style.display = 'block';
+                    document.getElementById('toggleView').innerText = "ACCESS SCANNER";
+                    showView('historyView');
+                    listenForScans();
                 } else {
-                    document.getElementById('badgeName').innerText = profile.name;
-                    document.getElementById('badgeId').innerText = "ID: " + profile.empId;
-                    showView('scannerView');
-                    startScanner();
+                    const profile = JSON.parse(localStorage.getItem('qrg_profile'));
+                    if (!profile) {
+                        showView('setupView');
+                    } else {
+                        document.getElementById('badgeName').innerText = profile.name;
+                        document.getElementById('badgeId').innerText = "ID: " + profile.empId;
+                        showView('scannerView');
+                        startScanner();
+                    }
                 }
+            } catch (error) {
+                showStatus("CONNECTION DENIED", "error");
             }
         }
 
         document.getElementById('saveProfile').onclick = () => {
             const name = document.getElementById('userName').value.trim();
             const empId = document.getElementById('userId').value.trim();
-            if(!name || !empId) return showAlert("CREDENTIALS REQUIRED", "fa-triangle-exclamation");
+            if(!name || !empId) return alert("Credentials required for authorization.");
             localStorage.setItem('qrg_profile', JSON.stringify({ name, empId }));
             location.reload();
         };
 
-        const clearBtn = document.getElementById('clearLogsBtn');
-        const confirmState = document.getElementById('deleteConfirmState');
-        
-        if (clearBtn) {
-            clearBtn.onclick = () => {
-                clearBtn.classList.add('hidden');
-                confirmState.classList.remove('hidden');
-            };
-        }
-
-        document.getElementById('cancelDelete').onclick = () => {
-            clearBtn.classList.remove('hidden');
-            confirmState.classList.add('hidden');
-        };
-
-        document.getElementById('confirmDelete').onclick = async () => {
-            showStatus("WIPING VAULT...", "info");
-            try {
-                const querySnapshot = await getDocs(scansCollection);
-                const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
-                await Promise.all(deletePromises);
-                showStatus("VAULT CLEARED", "success");
-                confirmState.classList.add('hidden');
-                clearBtn.classList.remove('hidden');
-                setTimeout(() => showStatus("", "hide"), 3000);
-            } catch (e) {
-                showStatus("WIPE FAILED", "error");
+        document.getElementById('clearLogsBtn').onclick = async () => {
+            if (!isAdmin) return;
+            if (confirm("Permanently wipe encrypted history logs?")) {
+                showStatus("WIPING VAULT...", "info");
+                try {
+                    const querySnapshot = await getDocs(scansCollection);
+                    const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
+                    await Promise.all(deletePromises);
+                    showStatus("VAULT CLEARED", "success");
+                    setTimeout(() => showStatus("", "hide"), 3000);
+                } catch (e) {
+                    showStatus("WIPE FAILED", "error");
+                }
             }
         };
+
+        function showView(id) {
+            ['setupView', 'scannerView', 'historyView'].forEach(v => document.getElementById(v).classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+        }
 
         async function stopScanner() {
             if (html5QrCode) {
@@ -345,133 +268,114 @@
         function startScanner() {
             if (html5QrCode) return;
             html5QrCode = new Html5Qrcode("reader");
-            const config = { fps: 15, qrbox: { width: 250, height: 250 } };
-            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
-            .catch(() => showStatus("CAMERA DENIED", "error"));
+            html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, onScanSuccess)
+            .catch(() => showStatus("HARDWARE BLOCKED", "error"));
         }
 
         async function onScanSuccess(decodedText) {
             await html5QrCode.pause(true);
             showStatus("SITE IDENTIFIED", "info");
-            
-            document.getElementById('faceOverlay').classList.remove('hidden');
+            const overlay = document.getElementById('faceOverlay');
             const video = document.getElementById('faceCaptureVideo');
+            overlay.classList.remove('hidden');
 
             try {
-                faceStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user", width: 600, height: 600 } 
-                });
+                faceStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
                 video.srcObject = faceStream;
-                // Auto-finalize after 2.5 seconds (Auto-Click)
                 setTimeout(() => finalizeAttendance(decodedText), 2500);
             } catch (err) {
-                showAlert("BIOMETRIC ACCESS FAILED", "fa-camera-slash");
-                document.getElementById('faceOverlay').classList.add('hidden');
+                showStatus("BIOMETRIC ERROR", "error");
                 if(html5QrCode) html5QrCode.resume();
+                overlay.classList.add('hidden');
             }
         }
 
         async function finalizeAttendance(siteId) {
-            if (!currentUser) return showStatus("UNAUTHORIZED", "error");
-
             const video = document.getElementById('faceCaptureVideo');
             const canvas = document.getElementById('photoCanvas');
             const ctx = canvas.getContext('2d');
-            
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const photoData = canvas.toDataURL('image/jpeg', 0.6);
-            
+            const photoData = canvas.toDataURL('image/jpeg', 0.5);
             if (faceStream) faceStream.getTracks().forEach(track => track.stop());
             document.getElementById('faceOverlay').classList.add('hidden');
-            showStatus("SYNCING...", "info");
+            showStatus("ENCRYPTING...", "info");
             
-            const profile = JSON.parse(localStorage.getItem('qrg_profile')) || { name: "System", empId: "SYS-01" };
+            let profile = JSON.parse(localStorage.getItem('qrg_profile')) || (isAdmin ? { name: "System Admin", empId: "ADMIN-000" } : null);
 
-            const saveRecord = async (coords = null) => {
+            navigator.geolocation.getCurrentPosition(async (pos) => {
                 try {
                     await addDoc(scansCollection, {
                         personName: profile.name,
                         employeeId: profile.empId,
                         siteLocation: siteId,
                         timestamp: serverTimestamp(),
-                        latitude: coords ? coords.latitude : 0,
-                        longitude: coords ? coords.longitude : 0,
-                        facePhoto: photoData,
-                        userId: currentUser.uid
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude,
+                        facePhoto: photoData
                     });
-                    
-                    showAlert("ACCESS LOGGED", "fa-check-circle");
-                    showStatus("SUCCESSFUL SYNC", "success");
-                    if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
-                    
-                    setTimeout(() => { 
-                        showStatus("", "hide"); 
-                        if(html5QrCode) html5QrCode.resume(); 
-                    }, 4000);
+                    showStatus("LOGGED SUCCESSFULLY", "success");
+                    if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+                    setTimeout(() => { showStatus("", "hide"); if(html5QrCode) html5QrCode.resume(); }, 5000);
                 } catch (e) {
-                    showStatus("DATABASE ERROR", "error");
+                    showStatus("SYNC FAILED", "error");
                     if(html5QrCode) html5QrCode.resume();
                 }
-            };
-
-            // Geolocation with Failsafe
-            navigator.geolocation.getCurrentPosition(
-                (pos) => saveRecord(pos.coords),
-                () => saveRecord(), // Proceed without GPS if fails
-                { enableHighAccuracy: true, timeout: 5000 }
-            );
+            }, () => {
+                showStatus("GPS REQUIRED", "error");
+                if(html5QrCode) html5QrCode.resume();
+            }, { enableHighAccuracy: true });
         }
 
         function listenForScans() {
-            if (!currentUser) return;
-            const historyList = document.getElementById('historyList');
-
             onSnapshot(scansCollection, (snapshot) => {
-                const countEl = document.getElementById('scanCount');
-                const docs = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
-                
+                const list = document.getElementById('historyList');
+                const count = document.getElementById('scanCount');
+                const docs = snapshot.docs.map(d => d.data());
                 docs.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-                
-                if (countEl) countEl.innerText = docs.length;
+                count.innerText = docs.length;
                 if (docs.length === 0) {
-                    historyList.innerHTML = '<div class="text-center py-20 text-slate-200 brand-font text-[10px] uppercase tracking-[0.4em]">Empty Vault</div>';
+                    list.innerHTML = '<div class="text-center py-20 text-slate-200 brand-font text-[10px] uppercase tracking-[0.4em]">Empty Vault</div>';
                     return;
                 }
-                
-                historyList.innerHTML = docs.map(s => `
-                    <div class="bg-white p-5 rounded-[2.5rem] luxury-shadow border border-slate-50 flex flex-col xs:flex-row gap-5 items-center">
-                        <div class="w-24 h-24 flex-shrink-0 bg-slate-50 rounded-[1.5rem] overflow-hidden border border-[#D2B48C] shadow-inner">
-                            <img src="${s.facePhoto || ''}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/150?text=No+Photo'">
+                list.innerHTML = docs.map(s => `
+                    <div class="bg-white p-6 rounded-[2.5rem] luxury-shadow border border-slate-50 flex gap-6 items-center">
+                        <div class="w-24 h-24 flex-shrink-0 bg-slate-50 rounded-[1.5rem] overflow-hidden border border-[#D2B48C] luxury-shadow">
+                            <img src="${s.facePhoto || ''}" class="w-full h-full object-cover">
                         </div>
-                        <div class="flex-1 min-w-0 w-full">
-                            <div class="flex justify-between items-start mb-1">
-                                <h3 class="brand-font font-bold text-navy text-[12px] truncate uppercase">${s.personName}</h3>
-                                <span class="text-[8px] text-white font-black bg-navy px-2 py-0.5 rounded-full">
-                                    ${s.timestamp ? new Date(s.timestamp.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '...'}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="brand-font font-bold text-navy text-[13px] truncate uppercase tracking-tight">${s.personName}</h3>
+                                <span class="text-[9px] text-white font-black bg-navy px-2 py-0.5 rounded-full">
+                                    ${s.timestamp ? new Date(s.timestamp.seconds * 1000).toLocaleTimeString() : '...'}
                                 </span>
                             </div>
-                            <p class="text-[8px] text-slate-400 font-black uppercase tracking-widest mb-3">ID: ${s.employeeId}</p>
-                            <div class="flex items-center justify-between border-t border-slate-50 pt-3">
-                                <div class="flex items-center gap-2 text-[8px] text-navy font-black uppercase">
-                                    <i class="fas fa-building text-[#D2B48C]"></i>
-                                    <span class="truncate max-w-[80px]">${s.siteLocation}</span>
+                            <p class="text-[9px] text-slate-400 font-black uppercase tracking-[0.1em] mb-4">ID: ${s.employeeId}</p>
+                            <div class="flex items-center justify-between mt-auto">
+                                <div class="flex items-center gap-2 text-[9px] text-navy font-black uppercase tracking-wider">
+                                    <i class="fas fa-location-dot text-[#D2B48C]"></i>
+                                    ${s.siteLocation}
                                 </div>
                                 <a href="https://www.google.com/maps?q=${s.latitude},${s.longitude}" target="_blank" 
-                                   class="text-[8px] font-black text-[#D2B48C] hover:text-navy transition-colors">
-                                   VIEW MAP <i class="fas fa-arrow-right ml-1"></i>
+                                   class="text-[8px] font-black text-[#D2B48C] underline uppercase tracking-[0.2em] hover:text-[#001B3D] transition-colors">
+                                   GPS MAP
                                 </a>
                             </div>
                         </div>
                     </div>
                 `).join('');
-            }, (err) => {
-                console.error("Snapshot error:", err);
-                showStatus("CONNECTION ERROR", "error");
             });
         }
 
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusMessage');
+            if (type === 'hide') { el.classList.add('hidden'); return; }
+            el.className = "p-4 rounded-2xl text-center brand-font text-[9px] font-black uppercase tracking-[0.3em] mt-4 " + 
+                (type === 'error' ? 'bg-red-50 text-red-700' : type === 'success' ? 'bg-[#001B3D] text-[#D2B48C]' : 'bg-[#D2B48C] text-[#001B3D]');
+            el.innerText = msg;
+            el.classList.remove('hidden');
+        }
+
         document.getElementById('toggleView').onclick = async () => {
-            const scannerView = document.getElementById('scannerView');
             const isShowingHistory = scannerView.classList.contains('hidden');
             if(isShowingHistory) {
                 showView('scannerView');
@@ -481,11 +385,10 @@
                 await stopScanner();
                 showView('historyView');
                 document.getElementById('toggleView').innerText = "ACCESS SCANNER";
-                listenForScans();
             }
         };
 
-        window.onload = init;
+        init();
     </script>
 </body>
 </html>
