@@ -193,41 +193,38 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, getDocs, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, serverTimestamp, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // --- ADAPTIVE CONFIGURATION ---
-        let firebaseConfig;
-        let appId;
-        let initialToken;
+        // --- ADAPTIVE FIREBASE CONFIG ---
+        let firebaseConfig = {
+            apiKey: "AIzaSyDKn3JVDodxBa7M0uuaVPnNWUhwcDfayy0",
+            authDomain: "qratd-5662a.firebaseapp.com",
+            projectId: "qratd-5662a",
+            storageBucket: "qratd-5662a.firebasestorage.app",
+            messagingSenderId: "820055328673",
+            appId: "1:820055328673:web:b1209fc5af3b16cd19ede0",
+            measurementId: "G-6C80ZM4CH7"
+        };
 
+        let internalAppId = "qr-guard-pro-default";
+        let initialToken = null;
+
+        // Overlay Canvas values if present
         if (typeof __firebase_config !== 'undefined') {
             firebaseConfig = JSON.parse(__firebase_config);
-            appId = typeof __app_id !== 'undefined' ? __app_id : 'qr-guard-pro-default';
+            internalAppId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
             initialToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        } else {
-            // Your original hardcoded project credentials
-            firebaseConfig = {
-                apiKey: "AIzaSyDKn3JVDodxBa7M0uuaVPnNWUhwcDfayy0",
-                authDomain: "qratd-5662a.firebaseapp.com",
-                projectId: "qratd-5662a",
-                storageBucket: "qratd-5662a.firebasestorage.app",
-                messagingSenderId: "820055328673",
-                appId: "1:820055328673:web:b1209fc5af3b16cd19ede0",
-                measurementId: "G-6C80ZM4CH7"
-            };
-            appId = firebaseConfig.projectId;
-            initialToken = null;
         }
         
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
         
-        // FIXED DATABASE PATH: Detects if running in Canvas vs Personal GitHub
+        // ADAPTIVE PATHING: Prevent "Database Error" on personal deployments
         const scansCollection = (typeof __firebase_config !== 'undefined') 
-            ? collection(db, 'artifacts', appId, 'public', 'data', 'scans')
-            : collection(db, 'scans'); // Restored your original flat structure for GitHub
+            ? collection(db, 'artifacts', internalAppId, 'public', 'data', 'scans')
+            : collection(db, 'scans');
 
         const urlParams = new URLSearchParams(window.location.search);
         const isAdmin = urlParams.get('admin') === 'true';
@@ -258,19 +255,16 @@
         }
 
         function showView(id) {
-            const views = ['setupView', 'scannerView', 'historyView'];
-            views.forEach(v => {
-                const el = document.getElementById(v);
-                if (el) el.classList.add('hidden');
+            ['setupView', 'scannerView', 'historyView'].forEach(v => {
+                document.getElementById(v).classList.add('hidden');
             });
-            const target = document.getElementById(id);
-            if (target) target.classList.remove('hidden');
+            document.getElementById(id).classList.remove('hidden');
         }
 
         async function init() {
             onAuthStateChanged(auth, (user) => {
                 currentUser = user;
-                if (user) setupApp();
+                if (user) setupUI();
             });
 
             try {
@@ -282,13 +276,10 @@
             }
         }
 
-        function setupApp() {
+        function setupUI() {
             if (isAdmin) {
-                const toggleBtn = document.getElementById('toggleView');
-                if (toggleBtn) {
-                    toggleBtn.classList.remove('hidden');
-                    toggleBtn.innerText = "ACCESS SCANNER";
-                }
+                document.getElementById('toggleView').classList.remove('hidden');
+                document.getElementById('toggleView').innerText = "ACCESS SCANNER";
                 showView('historyView');
                 listenForScans();
             } else {
@@ -296,10 +287,8 @@
                 if (!profile) {
                     showView('setupView');
                 } else {
-                    const badgeName = document.getElementById('badgeName');
-                    const badgeId = document.getElementById('badgeId');
-                    if(badgeName) badgeName.innerText = profile.name;
-                    if(badgeId) badgeId.innerText = profile.empId;
+                    document.getElementById('badgeName').innerText = profile.name;
+                    document.getElementById('badgeId').innerText = "ID: " + profile.empId;
                     showView('scannerView');
                     startScanner();
                 }
@@ -320,24 +309,24 @@
         if (clearBtn) {
             clearBtn.onclick = () => {
                 clearBtn.classList.add('hidden');
-                if(confirmState) confirmState.classList.remove('hidden');
+                confirmState.classList.remove('hidden');
             };
         }
 
         document.getElementById('cancelDelete').onclick = () => {
-            if(clearBtn) clearBtn.classList.remove('hidden');
-            if(confirmState) confirmState.classList.add('hidden');
+            clearBtn.classList.remove('hidden');
+            confirmState.classList.add('hidden');
         };
 
         document.getElementById('confirmDelete').onclick = async () => {
-            showStatus("WIPING DATABASE...", "info");
+            showStatus("WIPING VAULT...", "info");
             try {
                 const querySnapshot = await getDocs(scansCollection);
                 const deletePromises = querySnapshot.docs.map(d => deleteDoc(d.ref));
                 await Promise.all(deletePromises);
                 showStatus("VAULT CLEARED", "success");
-                if(confirmState) confirmState.classList.add('hidden');
-                if(clearBtn) clearBtn.classList.remove('hidden');
+                confirmState.classList.add('hidden');
+                clearBtn.classList.remove('hidden');
                 setTimeout(() => showStatus("", "hide"), 3000);
             } catch (e) {
                 showStatus("WIPE FAILED", "error");
@@ -355,33 +344,29 @@
 
         function startScanner() {
             if (html5QrCode) return;
-            const readerEl = document.getElementById("reader");
-            if (!readerEl) return;
-            
             html5QrCode = new Html5Qrcode("reader");
             const config = { fps: 15, qrbox: { width: 250, height: 250 } };
             html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
-            .catch(() => showStatus("CAMERA ACCESS DENIED", "error"));
+            .catch(() => showStatus("CAMERA DENIED", "error"));
         }
 
         async function onScanSuccess(decodedText) {
             await html5QrCode.pause(true);
             showStatus("SITE IDENTIFIED", "info");
             
-            const overlay = document.getElementById('faceOverlay');
+            document.getElementById('faceOverlay').classList.remove('hidden');
             const video = document.getElementById('faceCaptureVideo');
-            if(overlay) overlay.classList.remove('hidden');
 
             try {
                 faceStream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: "user", width: 600, height: 600 } 
                 });
-                if(video) video.srcObject = faceStream;
-                // Auto-click behavior: waits for feed then captures
-                setTimeout(() => finalizeAttendance(decodedText), 3000);
+                video.srcObject = faceStream;
+                // Auto-finalize after 2.5 seconds (Auto-Click)
+                setTimeout(() => finalizeAttendance(decodedText), 2500);
             } catch (err) {
-                showAlert("CAMERA ERROR", "fa-camera-slash");
-                if(overlay) overlay.classList.add('hidden');
+                showAlert("BIOMETRIC ACCESS FAILED", "fa-camera-slash");
+                document.getElementById('faceOverlay').classList.add('hidden');
                 if(html5QrCode) html5QrCode.resume();
             }
         }
@@ -391,21 +376,17 @@
 
             const video = document.getElementById('faceCaptureVideo');
             const canvas = document.getElementById('photoCanvas');
-            if(!video || !canvas) return;
-            
             const ctx = canvas.getContext('2d');
+            
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const photoData = canvas.toDataURL('image/jpeg', 0.6);
             
             if (faceStream) faceStream.getTracks().forEach(track => track.stop());
-            const overlay = document.getElementById('faceOverlay');
-            if(overlay) overlay.classList.add('hidden');
-            
+            document.getElementById('faceOverlay').classList.add('hidden');
             showStatus("SYNCING...", "info");
             
             const profile = JSON.parse(localStorage.getItem('qrg_profile')) || { name: "System", empId: "SYS-01" };
 
-            // Geolocation with robust fallback
             const saveRecord = async (coords = null) => {
                 try {
                     await addDoc(scansCollection, {
@@ -428,15 +409,15 @@
                         if(html5QrCode) html5QrCode.resume(); 
                     }, 4000);
                 } catch (e) {
-                    console.error("Firestore Error:", e);
                     showStatus("DATABASE ERROR", "error");
                     if(html5QrCode) html5QrCode.resume();
                 }
             };
 
+            // Geolocation with Failsafe
             navigator.geolocation.getCurrentPosition(
                 (pos) => saveRecord(pos.coords),
-                () => saveRecord(), // Failsafe: Save without GPS
+                () => saveRecord(), // Proceed without GPS if fails
                 { enableHighAccuracy: true, timeout: 5000 }
             );
         }
@@ -444,14 +425,11 @@
         function listenForScans() {
             if (!currentUser) return;
             const historyList = document.getElementById('historyList');
-            if (!historyList) return;
 
-            // Simplified query to avoid index errors on new projects
             onSnapshot(scansCollection, (snapshot) => {
                 const countEl = document.getElementById('scanCount');
                 const docs = snapshot.docs.map(d => ({id: d.id, ...d.data()}));
                 
-                // Client-side sort to prevent Firestore index requirements
                 docs.sort((a,b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
                 
                 if (countEl) countEl.innerText = docs.length;
@@ -492,24 +470,20 @@
             });
         }
 
-        const toggleBtn = document.getElementById('toggleView');
-        if(toggleBtn) {
-            toggleBtn.onclick = async () => {
-                const scannerView = document.getElementById('scannerView');
-                if(!scannerView) return;
-                const isShowingHistory = scannerView.classList.contains('hidden');
-                if(isShowingHistory) {
-                    showView('scannerView');
-                    startScanner();
-                    toggleBtn.innerText = "VIEW DASHBOARD";
-                } else {
-                    await stopScanner();
-                    showView('historyView');
-                    toggleBtn.innerText = "ACCESS SCANNER";
-                    listenForScans();
-                }
-            };
-        }
+        document.getElementById('toggleView').onclick = async () => {
+            const scannerView = document.getElementById('scannerView');
+            const isShowingHistory = scannerView.classList.contains('hidden');
+            if(isShowingHistory) {
+                showView('scannerView');
+                startScanner();
+                document.getElementById('toggleView').innerText = "VIEW DASHBOARD";
+            } else {
+                await stopScanner();
+                showView('historyView');
+                document.getElementById('toggleView').innerText = "ACCESS SCANNER";
+                listenForScans();
+            }
+        };
 
         window.onload = init;
     </script>
